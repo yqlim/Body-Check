@@ -1,4 +1,6 @@
-import './polyfills/object_assign';
+import Object_assign from './ponyfills/Object_assign';
+import Object_entries from './ponyfills/Object_entries';
+import Promise_constructor from './ponyfills/Promise_constructor';
 
 
 class Validation {
@@ -15,6 +17,10 @@ class Validation {
         this.addCase(key, cases[key]);
       }
     }
+  }
+
+  get size(){
+    return this.cases.size;
   }
 
   isObjectLiteral(value){
@@ -53,7 +59,7 @@ class Validation {
       throw new ReferenceError(`Case "${name}" is not found.`);
     }
 
-    config = Object.assign({}, this.getCase(name), config);
+    config = Object_assign({}, this.getCase(name), config);
 
     if (!this.isValidConfig(config)){
       throw new TypeError('Validation config must be an object literal with "validator" property as a function.');
@@ -71,46 +77,75 @@ class Validation {
     return this.cases.clear();
   }
 
+  // Cannot use async/await syntax
+  // because it needs global-polluting polyfills using Babel.
   run(values){
-    return new Promise(async (resolve, reject) => {
+    return new Promise_constructor((resolve, reject) => {
 
       if (!this.isObjectLiteral(values)){
         reject(new TypeError('The "values" parameter must be an object literal.'));
         return;
       }
 
-      const ret = {};
+      values = Object_entries(values);
 
-      for (const name in values){
-        const caseConfig = this.getCase(name);
+      start
+        .call(this, values)
+        .then(resolve)
+        .catch(reject);
 
-        if (!caseConfig){
-          reject(new ReferenceError(`Value of "${name}" cannot be validated because its case is not found.`));
-          return;
-        }
+      function start(values){
+        return new Promise_constructor((res, rej) => {
+          runner
+            .call(this, values)
+            .catch(rej);
+    
+          function runner(valueSet, ret = true, current = 0){
+            if (current >= valueSet.length){
+              res(ret);
+              return;
+            }
 
-        const value = values[name];
-        const {
-          validator,
-          error = `Validation for case "${name}" failed with this value: ${value}`,
-          params = [],
-          context
-        } = caseConfig;
+            const [name, value] = values[current];
+            const caseConfig = this.getCase(name);
 
-        const result = await validator.call(context, value, ...params);
+            if (!caseConfig){
+              rej(new ReferenceError(`Value of "${name}" cannot be validated because its case is not found.`));
+              return;
+            }
 
-        if (result !== true){
-          if (!ret.error){
-            ret.error = {};
+            const {
+              validator,
+              error = `Validation for case "${name}" failed with this value: ${value}`,
+              context
+            } = caseConfig;
+
+            // Force array
+            const params =
+              caseConfig.params === void 0
+                ? []
+                : Array.isArray(caseConfig.params)
+                  ? caseConfig.params
+                  : [caseConfig.params];
+
+            return Promise_constructor
+              .resolve(validator.call(context, value, ...params))
+              .catch(rej)
+              .then(result => {
+                if (result !== true){
+                  if (ret === true){
+                    ret = {};
+                  }
+                  ret[name] = 
+                    typeof result === 'string'
+                      ? result
+                      : error;
+                }
+                return runner.call(this, valueSet, ret, current + 1);
+              });
           }
-          ret.error[name] = 
-            typeof result === 'string'
-              ? result
-              : error;
-        }
+        });
       }
-
-      resolve(ret);
 
     });
   }

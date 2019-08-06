@@ -1,5 +1,6 @@
-import babel from 'rollup-plugin-babel'
-import pkg from './package.json'
+import resolve from 'rollup-plugin-node-resolve';
+import babel from 'rollup-plugin-babel';
+import pkg from './package.json';
 
 const name = toModuleName(pkg.name);
 
@@ -13,6 +14,9 @@ export default {
     banner: `/*!\n * ${name}\n * (c) 2019 Yong Quan Lim\n * Released under MIT License.\n */`
   },
   plugins: [
+    resolve({
+      mainFields: ['module', 'main', 'browser']
+    }),
     babel()
   ]
 }

@@ -89,65 +89,57 @@ class Validation {
 
       values = Object_entries(values);
 
-      start
+      awaitRunner
         .call(this, values)
         .then(resolve)
         .catch(reject);
 
-      function start(values){
-        return new Promise_constructor((res, rej) => {
-          runner
-            .call(this, values)
-            .catch(rej);
-    
-          function runner(valueSet, ret = true, current = 0){
-            if (current >= valueSet.length){
-              res(ret);
-              return;
+      function awaitRunner(valueSet, ret = true, current = 0){
+        if (current >= valueSet.length){
+          return Promise_constructor.resolve(ret);
+        }
+
+        const [name, value] = values[current];
+        const caseConfig = this.getCase(name);
+
+        if (!caseConfig){
+          return Promise_constructor.reject(new ReferenceError(`Value of "${name}" cannot be validated because its case is not found.`));
+        }
+
+        const {
+          validator,
+          context,
+          error = `Validation for case "${name}" failed with this value: ${value}`
+        } = caseConfig;
+
+        let params;
+
+        if (!Object.prototype.hasOwnProperty.call(caseConfig, 'params')){
+          params = [];
+        } else if (Array.isArray(caseConfig.params)) {
+          params = caseConfig.params;
+        } else {
+          return Promise_constructor.reject(new TypeError('The "params" property in validation config object, if exists, must be wrapped in an array.'));
+        }
+
+        return Promise_constructor
+          .resolve(validator.call(context, value, ...params))
+          .catch(Promise_constructor.reject.bind(Promise_constructor))
+          .then(result => {
+            if (result !== true){
+              if (ret === true){
+                ret = {};
+              }
+              ret[name] = 
+                typeof result === 'string'
+                  ? result
+                  : error;
             }
-
-            const [name, value] = values[current];
-            const caseConfig = this.getCase(name);
-
-            if (!caseConfig){
-              rej(new ReferenceError(`Value of "${name}" cannot be validated because its case is not found.`));
-              return;
-            }
-
-            const {
-              validator,
-              error = `Validation for case "${name}" failed with this value: ${value}`,
-              context
-            } = caseConfig;
-
-            // Force array
-            const params =
-              caseConfig.params === void 0
-                ? []
-                : Array.isArray(caseConfig.params)
-                  ? caseConfig.params
-                  : [caseConfig.params];
-
-            return Promise_constructor
-              .resolve(validator.call(context, value, ...params))
-              .catch(rej)
-              .then(result => {
-                if (result !== true){
-                  if (ret === true){
-                    ret = {};
-                  }
-                  ret[name] = 
-                    typeof result === 'string'
-                      ? result
-                      : error;
-                }
-                return runner.call(this, valueSet, ret, current + 1);
-              });
-          }
-        });
+            return awaitRunner.call(this, valueSet, ret, current + 1);
+          });
       }
 
-    });
+    })
   }
 
 }

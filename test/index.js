@@ -44,7 +44,7 @@ describe('Validation', async function(){
     return validation
       .addCase('normal', {
         validator: (_, n) => n === 10,
-        params: 10
+        params: [10]
       })
       .run({
         normal: 0

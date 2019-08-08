@@ -1,5 +1,5 @@
 import Object_assign from './ponyfills/Object_assign';
-import Object_entries from './ponyfills/Object_entries';
+import Object_getOwnPropertySymbols from './ponyfills/Object_getOwnPropertySymbols';
 import Promise_constructor from './ponyfills/Promise_constructor';
 
 
@@ -16,6 +16,9 @@ class Validation {
       for (const key in cases){
         this.addCase(key, cases[key]);
       }
+      Object_getOwnPropertySymbols(cases).forEach(symbol => {
+        this.addCase(symbol, cases[symbol]);
+      });
     }
   }
 
@@ -24,13 +27,24 @@ class Validation {
   }
 
   isObjectLiteral(value){
-    return value && value.constructor === Object;
+    return !!value && value.constructor === Object;
   }
 
   isValidConfig(value){
-    return this.isObjectLiteral(value)
-        && Object.prototype.hasOwnProperty.call(value, 'validator')
-        && typeof value.validator === 'function';
+    if (!this.isObjectLiteral(value))
+      return false;
+
+    if (!Object.prototype.hasOwnProperty.call(value, 'validator'))
+      return false;
+
+    if (typeof value.validator !== 'function')
+      return false;
+
+    if (Object.prototype.hasOwnProperty.call(value, 'params') && value.params !== void 0)
+      if (!Array.isArray(value.params))
+        return false;
+
+    return true;
   }
 
   hasCase(name){
@@ -43,7 +57,7 @@ class Validation {
 
   addCase(name, config){
     if (this.hasCase(name)){
-      throw new SyntaxError(`Case "${name}" has already been added.`);
+      throw new TypeError(`Case "${name.toString()}" has already been added.`);
     }
 
     if (!this.isValidConfig(config)){
@@ -56,7 +70,7 @@ class Validation {
 
   editCase(name, config){
     if (!this.hasCase(name)){
-      throw new ReferenceError(`Case "${name}" is not found.`);
+      throw new ReferenceError(`Case "${name.toString()}" is not found.`);
     }
 
     config = Object_assign({}, this.getCase(name), config);
@@ -87,40 +101,31 @@ class Validation {
         return;
       }
 
-      values = Object_entries(values);
+      const props = Object.keys(values).concat(Object_getOwnPropertySymbols(values));
+      const entries = props.map(prop => [prop, values[prop]]);
 
-      awaitRunner
-        .call(this, values)
+      awaitRunner(this, entries)
         .then(resolve)
         .catch(reject);
 
-      function awaitRunner(valueSet, ret = true, current = 0){
+      function awaitRunner(instance, valueSet, ret = true, current = 0){
         if (current >= valueSet.length){
           return Promise_constructor.resolve(ret);
         }
 
-        const [name, value] = values[current];
-        const caseConfig = this.getCase(name);
+        const [name, value] = valueSet[current];
+        const caseConfig = instance.getCase(name);
 
-        if (!caseConfig){
-          return Promise_constructor.reject(new ReferenceError(`Value of "${name}" cannot be validated because its case is not found.`));
+        if (caseConfig === void 0){
+          return Promise_constructor.reject(new ReferenceError(`Value of "${name.toString()}" cannot be validated because its case is not found.`));
         }
 
         const {
           validator,
           context,
-          error = `Validation for case "${name}" failed with this value: ${value}`
+          params = [],
+          error = `Validation for case "${name.toString()}" failed with this value: ${value.toString()}`
         } = caseConfig;
-
-        let params;
-
-        if (!Object.prototype.hasOwnProperty.call(caseConfig, 'params')){
-          params = [];
-        } else if (Array.isArray(caseConfig.params)) {
-          params = caseConfig.params;
-        } else {
-          return Promise_constructor.reject(new TypeError('The "params" property in validation config object, if exists, must be wrapped in an array.'));
-        }
 
         return Promise_constructor
           .resolve(validator.call(context, value, ...params))
@@ -135,11 +140,11 @@ class Validation {
                   ? result
                   : error;
             }
-            return awaitRunner.call(this, valueSet, ret, current + 1);
+            return awaitRunner(instance, valueSet, ret, current + 1);
           });
       }
 
-    })
+    });
   }
 
 }

@@ -3,14 +3,18 @@ import Object_getOwnPropertySymbols from './ponyfills/Object_getOwnPropertySymbo
 import Promise_constructor from './ponyfills/Promise_constructor';
 
 
-class Validation {
+class BodyCheck {
 
   constructor(cases = {}){
     if (cases && !this.isObjectLiteral(cases)){
       throw new TypeError('The "cases" parameter must be an object literal.');
     }
 
-    this.cases = new Map();
+    // If you need to change this, you have to deliberately redefine its descriptor.
+    Object.defineProperty(this, 'cases', {
+      value: new Map(),
+      configurable: true
+    });
 
     if (cases){
       for (const key in cases){
@@ -61,7 +65,7 @@ class Validation {
     }
 
     if (!this.isValidConfig(config)){
-      throw new TypeError('Validation config must be an object literal with "validator" property as a function.');
+      throw new TypeError('BodyCheck config must be an object literal with "validator" property as a function.');
     }
 
     this.cases.set(name, config);
@@ -73,10 +77,14 @@ class Validation {
       throw new ReferenceError(`Case "${name.toString()}" is not found.`);
     }
 
+    if (!this.isObjectLiteral(config)){
+      throw new TypeError(`The "config" parameter must be an object literal.`);
+    }
+
     config = Object_assign({}, this.getCase(name), config);
 
     if (!this.isValidConfig(config)){
-      throw new TypeError('Validation config must be an object literal with "validator" property as a function.');
+      throw new TypeError('BodyCheck config must be an object literal with "validator" property as a function.');
     }
 
     this.cases.set(name, config);
@@ -150,4 +158,4 @@ class Validation {
 }
 
 
-export default Validation;
+export default BodyCheck;

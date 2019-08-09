@@ -2,7 +2,7 @@ const chai = require('chai');
 const expect = chai.expect;
 chai.should();
 
-const Validation = require('./../lib');
+const BodyCheck = require('./../lib');
 
 const symbol = Symbol('symbol');
 const cases = {
@@ -47,23 +47,23 @@ const basic = {
 };
 
 
-describe('Validation', async function(){
+describe('BodyCheck', function(){
 
   describe('Constructor', function(){
 
     it('should create an instance without parameters.', function(){
-      const instance = new Validation();
-      instance.should.be.instanceOf(Validation);
+      const instance = new BodyCheck();
+      instance.should.be.instanceOf(BodyCheck);
     });
 
     it('should have property "cases" as a Map instance.', function(){
-      const instance = new Validation();
+      const instance = new BodyCheck();
       instance.should.have.property('cases');
       instance.cases.should.be.instanceOf(Map);
     });
 
     it('should throw TypeError if parameter is truthy but not object literal.', function(){
-      const create = function(){ return new Validation(this) };
+      const create = function(){ return new BodyCheck(this) };
       const error = 'The "cases" parameter must be an object literal.';
       const runner = (...args) => {
         args.forEach(arg => {
@@ -77,12 +77,12 @@ describe('Validation', async function(){
         [],
         () => {},
         Symbol(),
-        new Validation()
+        new BodyCheck()
       );
     });
 
     it('should appropriately add cases when passed in parameter.', function(){
-      const instance = new Validation(basic.cases);
+      const instance = new BodyCheck(basic.cases);
       expect(instance.size).to.equal(basic.props.length);
       basic.props.forEach(prop => {
         expect(instance.getCase(prop)).to.not.equal(void 0);
@@ -91,9 +91,32 @@ describe('Validation', async function(){
 
   });
 
+  describe('.cases', function(){
+
+    const instance = new BodyCheck();
+    const casesDescriptors = Object.getOwnPropertyDescriptors(instance).cases;
+
+    it('should return a Map.', function(){
+      instance.cases.should.be.an.instanceOf(Map);
+    });
+
+    it('should not be writable.', function(){
+      expect(casesDescriptors.writable).to.equal(false);
+    });
+
+    it('should not be enumerable.', function(){
+      expect(casesDescriptors.enumerable).to.equal(false);
+    });
+
+    it('should be configurable.', function(){
+      expect(casesDescriptors.configurable).to.equal(true);
+    });
+
+  });
+
   describe('.size', function(){
 
-    const instance = new Validation();
+    const instance = new BodyCheck();
 
     let i = 0;
 
@@ -125,7 +148,7 @@ describe('Validation', async function(){
   describe('.isObjectLiteral', function(){
 
     it('should return false if value is not object literal.', function(){
-      const instance = new Validation();
+      const instance = new BodyCheck();
       const run = value => instance.isObjectLiteral(value);
       const runner = (...args) => {
         args.forEach(([value, expected]) => {
@@ -150,7 +173,7 @@ describe('Validation', async function(){
 
   describe('.isValidConfig', function(){
 
-    const instance = new Validation();
+    const instance = new BodyCheck();
     const run = value => instance.isValidConfig(value);
     const runner = (...args) => {
       args.forEach(([value, expected]) => {
@@ -209,7 +232,7 @@ describe('Validation', async function(){
 
   describe('.hasCase', function(){
     
-    const instance = new Validation(basic.cases);
+    const instance = new BodyCheck(basic.cases);
 
     it('should return true if case name is found.', function(){
       basic.props.forEach(prop => {
@@ -225,7 +248,7 @@ describe('Validation', async function(){
 
   describe('.getCase', function(){
 
-    const instance = new Validation(basic.cases);
+    const instance = new BodyCheck(basic.cases);
 
     it('should return appropriately if case name is found.', function(){
       basic.props.forEach(prop => {
@@ -241,7 +264,7 @@ describe('Validation', async function(){
 
   describe('.addCase', function(){
 
-    const instance = new Validation();
+    const instance = new BodyCheck();
     const string = 'string';
     const symbol = Symbol('symbol');
     const config = { validator(){} };
@@ -287,7 +310,7 @@ describe('Validation', async function(){
 
   describe('.editCase', function(){
 
-    const instance = new Validation();
+    const instance = new BodyCheck();
 
     afterEach(function(){
       instance.clear();
@@ -298,7 +321,29 @@ describe('Validation', async function(){
       expect(run).to.throw(ReferenceError, /is not found/);
     });
 
-    it('should throw TypeError if case config is not valid.', function(){
+    it('should throw TypeError if paramter[1] is not object literal.', function(){
+      const values = [
+        [],
+        true,
+        1,
+        'ok',
+        instance,
+        Symbol(),
+        null,
+        void 0,
+        () => {}
+      ];
+
+      const caseName = 'example';
+      instance.addCase(caseName, { validator: () => {} });
+
+      values.forEach(value => {
+        const run = instance.editCase.bind(instance, caseName, value);
+        expect(run).to.throw(TypeError, 'The "config" parameter must be an object literal.');
+      });
+    });
+
+    it('should throw TypeError if case config becomes invalid.', function(){
       instance.addCase(...basic.entries[0])
       const run = instance.editCase.bind(instance, basic.keys[0], { validator: 1 });
       expect(run).to.throw(TypeError, /"validator" property as a function/);
@@ -343,7 +388,7 @@ describe('Validation', async function(){
 
     const name = 'name';
     const config = { validator(){} };
-    const instance = new Validation({
+    const instance = new BodyCheck({
       [name]: config
     });
 
@@ -357,7 +402,7 @@ describe('Validation', async function(){
 
   describe('.clear', function(){
 
-    const instance = new Validation(basic.cases);
+    const instance = new BodyCheck(basic.cases);
 
     it('should appropriately clear all cases.', function(){
       instance.clear();
@@ -371,12 +416,16 @@ describe('Validation', async function(){
 
   describe('.run', function(){
 
-    const instance = new Validation(basic.cases);
+    const instance = new BodyCheck(basic.cases);
 
     let result;
 
     afterEach(function(){
       result = void 0;
+    });
+
+    it('should return a Promise.', function(){
+      instance.run({}).should.be.an.instanceOf(Promise);
     });
 
     it('should be rejected with a TypeError if values are not object literal.', async function(){
@@ -418,7 +467,7 @@ describe('Validation', async function(){
       }
     });
     
-    it('should return true if all values passed the validation.', async function(){
+    it('should be resolved to true if all values passed the validation.', async function(){
       const valueSet = {
         defaultError: 9,
         customDefaultError: 11,
@@ -480,7 +529,7 @@ describe('Validation', async function(){
 
     it('should be rejected with whatever error thrown with validator.', async function(){
       const randomError = new Error('Any error');
-      const instance = new Validation({
+      const instance = new BodyCheck({
         throw: {
           validator: () => { throw randomError }
         }

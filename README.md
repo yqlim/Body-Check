@@ -28,7 +28,7 @@ _All Node versions._
 
 | Browser | Version (>=) |
 |:------- | -------:|
-| Internet Explorer | 11 |
+| Internet Explorer | 11* |
 | Edge | 12 |
 | Chrome | 38 |
 | Firefox | 13 |
@@ -36,6 +36,8 @@ _All Node versions._
 | Android | 38 |
 | Opera | 25 |
 | Firefox for Android | 14 |
+
+\* Partial support: Does not support `.run` method because it depends on `Promise`.
 
 ## Install
 
@@ -348,6 +350,8 @@ checker.clear();
 
 #### run(valueObj: BodyCheckValues): Promise<true | BodyCheckError | TypeError | ReferenceError> <!-- omit in toc -->
 
+_In environment that does not natively support `Promise`, you must include a polyfill for `Promise` to correctly run this method. Otherwise, exception will be thrown._
+
 Asynchronously run all tests with the values provided.
 
 The test will iterate through the properties in `valueObj`. As such, property key that is not found in the instance will throw an exception.
@@ -388,6 +392,67 @@ const checker = new BodyCheck({
 });
 
 checker.run({
+  defaultError: 10,
+  customDefaultError: 10,
+  customError: false,
+  parameters: 'password',
+  this: 10,
+  10: 1,
+  [symbol]: 1
+}).then(obj => {
+  /**
+   * Resolves as an object containing caseName-error pair:
+   * {
+   *   defaultError: 'Validation for case "defaultError" failed with this value: 10',
+   *   customDefaultError: 'This is wrong!',
+   *   customError: 'No!'
+   * }
+   */
+});
+```
+
+#### runSync(valueObj: BodyCheckValues): true | BodyCheckError <!-- omit in toc -->
+
+Synchronously run all tests with the values provided.
+
+The test will iterate through the properties in `valueObj`. As such, property key that is not found in the instance will throw an exception.
+
+Not all existing cases must be validated, but all `valueObj` properties must correspond to an existing case.
+
+Case names that are not found in `valueObj` will be skipped when running the validation.
+
+```javascript
+const symbol = Symbol('example');
+const checker = new BodyCheck({
+  defaultError: {
+    validator: n => n < 10
+  },
+  customDefaultError: {
+    validator: n => n < 10,
+    error: 'This is wrong!'
+  },
+  customError: {
+    validator: v => v || 'No!'
+  },
+  parameters: {
+    validator: (v, p) => v === p,
+    params: ['password']
+  },
+  this: {
+    validator: function(n){
+      return this.valueOf() === n;
+    },
+    context: 10
+  },
+  [10]: {
+    validator: v => !!v;
+  },
+  [symbol]: {
+    validator: v => !!v;
+  }
+});
+
+checker.runSync({
   defaultError: 10,
   customDefaultError: 10,
   customError: false,

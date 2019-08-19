@@ -1,6 +1,5 @@
 import Object_assign from './ponyfills/Object_assign';
 import Object_getOwnPropertySymbols from './ponyfills/Object_getOwnPropertySymbols';
-import Promise_constructor from './ponyfills/Promise_constructor';
 
 
 class BodyCheck {
@@ -102,7 +101,7 @@ class BodyCheck {
   // Cannot use async/await syntax
   // because it needs global-polluting polyfills using Babel.
   run(values){
-    return new Promise_constructor((resolve, reject) => {
+    return new Promise((resolve, reject) => {
 
       if (!this.isObjectLiteral(values)){
         reject(new TypeError('The "values" parameter must be an object literal.'));
@@ -118,14 +117,14 @@ class BodyCheck {
 
       function awaitRunner(instance, valueSet, ret = true, current = 0){
         if (current >= valueSet.length){
-          return Promise_constructor.resolve(ret);
+          return Promise.resolve(ret);
         }
 
         const [name, value] = valueSet[current];
         const caseConfig = instance.getCase(name);
 
         if (caseConfig === void 0){
-          return Promise_constructor.reject(new ReferenceError(`Value of "${name.toString()}" cannot be validated because its case is not found.`));
+          return Promise.reject(new ReferenceError(`Value of "${name.toString()}" cannot be validated because its case is not found.`));
         }
 
         const {
@@ -135,9 +134,9 @@ class BodyCheck {
           error = `Validation for case "${name.toString()}" failed with this value: ${value.toString()}`
         } = caseConfig;
 
-        return Promise_constructor
+        return Promise
           .resolve(validator.call(context, value, ...params))
-          .catch(Promise_constructor.reject.bind(Promise_constructor))
+          .catch(Promise.reject.bind(Promise))
           .then(result => {
             if (result !== true){
               if (ret === true){
@@ -153,6 +152,48 @@ class BodyCheck {
       }
 
     });
+  }
+
+  runSync(values){
+    if (!this.isObjectLiteral(values)){
+      throw new TypeError('The "values" parameter must be an object literal.');
+    }
+
+    const props = Object.keys(values).concat(Object_getOwnPropertySymbols(values));
+    const entries = props.map(prop => [prop, values[prop]]);
+
+    let ret = true;
+
+    const taskLength = entries.length;
+    for (let i = 0; i < taskLength; i++){
+      const [name, value] = entries[i];
+      const caseConfig = this.getCase(name);
+
+      if (caseConfig === void 0){
+        throw new ReferenceError(`Value of "${name.toString()}" cannot be validated because its case is not found.`);
+      }
+
+      const {
+        validator,
+        context,
+        params = [],
+        error = `Validation for case "${name.toString()}" failed with this value: ${value.toString()}`
+      } = caseConfig;
+
+      const result = validator.call(context, value, ...params);
+
+      if (result !== true){
+        if (ret === true){
+          ret = {};
+        }
+        ret[name] = 
+          typeof result === 'string'
+            ? result
+            : error;
+      }
+    }
+
+    return ret;
   }
 
 }

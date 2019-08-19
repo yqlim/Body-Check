@@ -505,29 +505,29 @@ describe('BodyCheck', function(){
         basic.symbols.forEach(symbol => {
           expect(Object.getOwnPropertySymbols(result)).to.include(symbol);
         });
-        basic.keys.forEach(keys => {
-          expect(result).to.have.own.property(keys);
-          switch(keys){
+        basic.keys.forEach(key => {
+          expect(result).to.have.own.property(key);
+          switch(key){
             case 'defaultError':
             case 'this':
-              expect(result[keys]).to.match(/failed with this value\:/);
+              expect(result[key]).to.match(/failed with this value\:/);
               break;
             case 'customDefaultError':
-              expect(result[keys]).to.equal(basic.cases.customDefaultError.error);
+              expect(result[key]).to.equal(basic.cases.customDefaultError.error);
               break;
             case 'customError':
-              expect(result[keys]).to.equal(basic.cases.customError.validator());
+              expect(result[key]).to.equal(basic.cases.customError.validator());
               break;
             case 'parameters':
             default:
-              expect(result[keys]).to.equal(valueSet[keys]);
+              expect(result[key]).to.equal(valueSet[key]);
           }
         });
         return;
       }
     });
 
-    it('should be rejected with whatever error thrown with validator.', async function(){
+    it('should be rejected with whatever exception thrown by validator.', async function(){
       const randomError = new Error('Any error');
       const instance = new BodyCheck({
         throw: {
@@ -542,6 +542,112 @@ describe('BodyCheck', function(){
         expect(result).to.equal(randomError);
         return;
       }
+    });
+
+  });
+
+  describe('.runSync', function(){
+
+    const instance = new BodyCheck(basic.cases);
+
+    let result;
+
+    afterEach(function(){
+      result = void 0;
+    });
+
+    it('should throw if values are not object literal.', function(){
+
+      const values = [
+        [],
+        true,
+        1,
+        '1',
+        Symbol(1),
+        () => {},
+        void 0,
+        null,
+        instance
+      ];
+
+      for (const val of values){
+        expect(instance.runSync.bind(instance, val)).to.throw(TypeError, /must be an object literal/);
+      }
+
+    });
+
+    it('should throw if case is not found.', function(){
+      expect(instance.runSync.bind(instance, { any: 'any' }))
+        .to
+        .throw(ReferenceError, /case is not found/);
+    });
+
+    it('should return true if all values passed the validation.', function(){
+
+      const valueSet = {
+        defaultError: 9,
+        customDefaultError: 11,
+        customError: true,
+        parameters: true,
+        this: 10,
+        10: false,
+        [symbol]: false
+      }
+
+      expect(instance.runSync(valueSet)).to.equal(true);
+
+    });
+
+    it('should return an object with respective case name as properties and value as error message.', function(){
+
+      const valueSet = {
+        defaultError: 10,
+        customDefaultError: 10,
+        customError: false,
+        parameters: 'true',
+        this: '10',
+        10: 'false',
+        [symbol]: 'false'
+      }
+
+      const result = instance.runSync(valueSet);
+
+      basic.symbols.forEach(symbol => {
+        expect(Object.getOwnPropertySymbols(result)).to.include(symbol);
+      });
+
+      basic.keys.forEach(key => {
+        expect(result).to.have.own.property(key);
+        switch(key){
+          case 'defaultError':
+          case 'this':
+            expect(result[key]).to.match(/failed with this value\:/);
+            break;
+          case 'customDefaultError':
+            expect(result[key]).to.equal(basic.cases.customDefaultError.error);
+            break;
+          case 'customError':
+            expect(result[key]).to.equal(basic.cases.customError.validator());
+            break;
+          case 'parameters':
+          default:
+            expect(result[key]).to.equal(valueSet[key]);
+        }
+      });
+
+    });
+
+    it('should be thrown with whatever exception thrown by validator.', function(){
+      const randomError = new Error('Any error');
+      const instance = new BodyCheck({
+        throw: {
+          validator: () => { throw randomError }
+        }
+      });
+
+      expect(instance.runSync.bind(instance, { throw: 'any' }))
+        .to
+        .throw(randomError);
     });
 
   });

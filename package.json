@@ -1,6 +1,6 @@
 {
   "name": "body-check",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A flexible fully customised validation tool for JavaScript.",
   "main": "./lib/index.js",
   "browser": "./lib/index.min.js",

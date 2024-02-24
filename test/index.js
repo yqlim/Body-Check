@@ -2,7 +2,7 @@ const chai = require('chai');
 const expect = chai.expect;
 chai.should();
 
-const BodyCheck = require('./../lib');
+const BodyCheck = require('./../dist');
 
 const symbol = Symbol('symbol');
 const cases = {
@@ -231,7 +231,7 @@ describe('BodyCheck', function(){
   });
 
   describe('.hasCase', function(){
-    
+
     const instance = new BodyCheck(basic.cases);
 
     it('should return true if case name is found.', function(){
@@ -441,7 +441,7 @@ describe('BodyCheck', function(){
         null,
         instance
       ];
-      
+
       for (const val of values){
         try {
           result = await instance.run(val)
@@ -466,7 +466,7 @@ describe('BodyCheck', function(){
         return;
       }
     });
-    
+
     it('should be resolved to true if all values passed the validation.', async function(){
       const valueSet = {
         defaultError: 9,

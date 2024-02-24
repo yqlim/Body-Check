@@ -9,7 +9,7 @@ export default {
   input: './src/index.js',
   output: {
     name,
-    file: './lib/index.js',
+    file: './dist/index.js',
     format: 'umd',
     banner: `/*!\n * ${name}\n * (c) 2019 Yong Quan Lim\n * Released under MIT License.\n */`
   },
